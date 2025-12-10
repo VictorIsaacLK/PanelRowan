@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="/assets/manifest.json">
   <meta name="theme-color" content="#e51e2a">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
@@ -52,6 +52,7 @@
     .empty{padding:20px;text-align:center;color:var(--muted)}
   </style>
 </head>
+<script src="/assets/config.js"></script>
 <body>
   <header>
     <button id="logoutBtn" class="header-logout" title="Cerrar sesión">⎋</button>
@@ -101,8 +102,8 @@
   </footer>
 
   <script>
-    // --- Config
-    const API_BASE = window.API_BASE_URL || 'http://localhost:3000' || 'https://victorobproyecto.site/api';
+    // --- Config (read from central /assets/config.js)
+    const API_BASE = window.API_BASE_URL || (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'http://localhost:3000';
 
     // --- Helpers
     function el(tag, attrs={}, children=[]){
@@ -203,6 +204,7 @@
       const list = document.getElementById('ticketsList'); list.innerHTML='';
       if(tickets.length===0){ list.appendChild(el('div',{class:'empty'},'No hay tickets')); return; }
       tickets.forEach(t=>{
+        if(!t) return; // ignore null/undefined entries
         const card = el('article',{class:'card'});
         // Support both flat and nested ticket shapes
         const codigo = t.codigo_ticket || t.codigoTicket || '';
@@ -372,6 +374,7 @@
 
     async function assignTicket(ticketId, empleadoId){
       if(!empleadoId){ alert('Selecciona un empleado'); return; }
+      tickets = tickets || [];
       try{
         // Prefer a specific endpoint if available
         const res = await fetch(API_BASE + '/asignaciones-tickets',{
@@ -387,7 +390,7 @@
           if(!res2.ok) throw new Error('Error asignando ticket');
         }
         // update local copy
-        const t = tickets.find(x=>String(x.id)===String(ticketId)); if(t) t.usuarioAsignado = usuarios.find(u=>String(u.id)===String(empleadoId)) || null;
+        const t = (tickets || []).find(x=>x && String(x.id)===String(ticketId)); if(t) t.usuarioAsignado = usuarios.find(u=>String(u.id)===String(empleadoId)) || null;
         renderList();
         alert('Ticket asignado');
       }catch(e){ console.error(e); alert('Error asignando ticket'); }

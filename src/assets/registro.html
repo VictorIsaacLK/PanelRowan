@@ -45,6 +45,7 @@
     .networks{letter-spacing:6px;font-weight:700;font-size:13px;opacity:.9}
   </style>
 </head>
+<script src="/assets/config.js"></script>
 <body>
   <main class="wrap">
     <section class="card">
@@ -104,8 +105,8 @@
   </main>
 
   <script>
-    // Base API URL (ajusta si tu API corre en otro puerto)
-    const API_BASE = window.API_BASE_URL || 'http://localhost:3000' || 'https://victorobproyecto.site/api';
+    // Base API URL (lee la configuración central en /assets/config.js)
+    const API_BASE = window.API_BASE_URL || (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'http://localhost:3000';
 
     const form = document.getElementById('registerForm');
     const msgEl = document.getElementById('regMessage');

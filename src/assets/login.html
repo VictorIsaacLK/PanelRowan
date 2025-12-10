@@ -127,6 +127,7 @@
     }
   </style>
 </head>
+<script src="/assets/config.js"></script>
 <body>
   <main class="wrap">
     <section class="card" aria-labelledby="title">
@@ -175,8 +176,8 @@
   </main>
 
   <script>
-    // Configura la URL base de la API (ajusta si tu servidor corre en otro puerto)
-    const API_BASE = window.API_BASE_URL || 'http://localhost:3000' || 'https://victorobproyecto.site/api';
+    // Configura la URL base de la API (usa el config central en /assets/config.js)
+    const API_BASE = window.API_BASE_URL || (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'http://localhost:3000';
 
     const form = document.getElementById('loginForm');
     const card = document.querySelector('.card');

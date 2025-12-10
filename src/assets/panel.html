@@ -146,7 +146,14 @@
 
       // Fetch additional resources used in the panel so we can export them
       try{ const r = await fetch(API_BASE + '/usuarios'); if(r.ok) usuarios = await r.json(); }catch(e){ console.warn('Usuarios no disponibles'); }
-      try{ const r = await fetch(API_BASE + '/roles'); if(r.ok) roles = await r.json(); }catch(e){ console.warn('Roles no disponibles'); }
+      try{
+        // include Authorization header if token present
+        const token = localStorage.getItem('token') || '';
+        const bearer = token && token.startsWith('Bearer ') ? token : (token ? ('Bearer ' + token) : '');
+        const opts = bearer ? { headers: { 'Authorization': bearer } } : {};
+        const r = await fetch(API_BASE + '/roles', opts);
+        if(r.ok) roles = await r.json();
+      }catch(e){ console.warn('Roles no disponibles'); }
       try{ const r = await fetch(API_BASE + '/edificios'); if(r.ok) edificios = await r.json(); }catch(e){ console.warn('Edificios no disponibles'); }
       // populate edificios select
       try{
@@ -603,31 +610,65 @@
       const row = el('div',{class:'form-row'});
       const roleSel = el('select',{class:'select-sm',id:'detailRoleSelect'});
       roleSel.appendChild(el('option',{value:''}, 'Seleccionar rol'));
-      // populate roles (use existing roles array or fetch if empty)
+      // populate roles (prefer fresh fetch to avoid stale/duplicated data)
+      const dedupeRoles = (list)=>{
+        const m = new Map();
+        (Array.isArray(list)?list:[]).forEach(r=>{
+          const key = (r && (r.id || r.nombre)) ? (r.id !== undefined ? String(r.id) : String(r.nombre)) : JSON.stringify(r);
+          if(!m.has(key)) m.set(key, r);
+        });
+        return Array.from(m.values());
+      };
+
       const populateRoles = (rolesList)=>{
         // clear existing
         roleSel.innerHTML = '';
         roleSel.appendChild(el('option',{value:''}, 'Seleccionar rol'));
-        if(Array.isArray(rolesList)){
-          rolesList.forEach(r=>{
-            const opt = el('option',{value:r.id}, r.nombre);
-            roleSel.appendChild(opt);
-          });
-        }
-        // preselect current role if present
+        const unique = dedupeRoles(rolesList);
+        unique.forEach(r=>{
+          // ensure option text and value exist
+          const id = (r && (r.id !== undefined)) ? r.id : r.nombre || r;
+          const nombre = (r && r.nombre) ? r.nombre : String(r);
+          const opt = el('option',{value:id}, nombre);
+          roleSel.appendChild(opt);
+        });
+
+        // preselect current role if present (try id then nombre)
         try{
-          const cur = u.rol && (u.rol.id || u.rol) ? (u.rol.id || u.rol) : '';
-          if(cur) roleSel.value = String(cur);
-        }catch(e){}
+          const curId = u.rol && (u.rol.id || u.rol) ? String(u.rol.id || u.rol) : '';
+          if(curId){
+            // if option with this value exists, select it
+            const found = Array.from(roleSel.options).some(o=> o.value === curId);
+            if(found) { roleSel.value = curId; return; }
+          }
+          // fallback: try matching by role name
+          const curName = u.rol && u.rol.nombre ? String(u.rol.nombre) : '';
+          if(curName){
+            const optByName = Array.from(roleSel.options).find(o=> o.textContent === curName);
+            if(optByName) roleSel.value = optByName.value;
+          }
+        }catch(e){ console.warn('Error preselecting role', e); }
       };
-      if(Array.isArray(roles) && roles.length>0){ populateRoles(roles); }
-      else {
-        // fetch roles from server as fallback
-        (async ()=>{
-          try{ const r = await fetch(API_BASE + '/roles'); if(r.ok){ const rr = await r.json(); roles = Array.isArray(rr)? rr : (rr.rows||[]); populateRoles(roles); } }
-          catch(e){ console.warn('No se pudieron cargar roles', e); }
-        })();
-      }
+
+      // Always try to fetch fresh roles to avoid duplicates/stale data
+      // normalize token and include Authorization header if available
+      const __token_for_roles = localStorage.getItem('token') || '';
+      const __bearer_for_roles = __token_for_roles && __token_for_roles.startsWith('Bearer ') ? __token_for_roles : (__token_for_roles ? ('Bearer ' + __token_for_roles) : '');
+      (async ()=>{
+        try{
+          const opts = __bearer_for_roles ? { headers: { 'Authorization': __bearer_for_roles } } : {};
+          const r = await fetch(API_BASE + '/roles', opts);
+          if(r.ok){
+            const rr = await r.json();
+            const fetched = Array.isArray(rr) ? rr : (rr.rows || []);
+            roles = dedupeRoles(fetched);
+            populateRoles(roles);
+            return;
+          }
+        }catch(e){ console.warn('No se pudieron cargar roles desde el servidor', e); }
+        // fallback to existing roles array if fetch failed
+        try{ populateRoles(roles || []); }catch(e){ /* ignore */ }
+      })();
 
       const saveBtn = el('button',{class:'btn',style:'margin-left:8px'}, 'Guardar rol');
       saveBtn.addEventListener('click', async ()=>{
@@ -635,15 +676,45 @@
         if(!selVal){ alert('Selecciona un rol'); return; }
         // find role name from roles array
         const selRole = (roles||[]).find(r=> String(r.id)===String(selVal)) || { id: selVal, nombre: roleSel.options[roleSel.selectedIndex]?.text || '' };
-        const body = { nombre: selRole.nombre || '' };
+        // disable UI while request runs
+        saveBtn.disabled = true;
+        const prevText = saveBtn.textContent;
+        saveBtn.textContent = 'Guardando...';
         try{
-          const res = await fetch(API_BASE + '/roles/' + encodeURIComponent(u.id), {
+          // include Authorization header if token exists
+          const tokenForReq = localStorage.getItem('token') || '';
+          const bearerForReq = tokenForReq && tokenForReq.startsWith('Bearer ') ? tokenForReq : (tokenForReq ? ('Bearer ' + tokenForReq) : '');
+          const headers = { 'Content-Type': 'application/json' };
+          if(bearerForReq) headers['Authorization'] = bearerForReq;
+
+          const res = await fetch(API_BASE + '/usuarios/' + encodeURIComponent(u.id), {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
+            headers,
+            body: JSON.stringify({ rol_id: Number(selRole.id) })
           });
+
           if(!res.ok){ const txt = await res.text().catch(()=>null); alert('Error al cambiar rol: ' + (txt || res.status)); return; }
-          // update local usuarios array to reflect new role
+
+          // prefer using server response (updated user) to keep local state consistent
+          let updatedUser = null;
+          try{ updatedUser = await res.json(); }catch(e){ /* no json response */ }
+          if(updatedUser && updatedUser.id !== undefined){
+            // replace or update the user in usuarios array
+            let found = false;
+            for(let i=0;i<usuarios.length;i++){
+              if(String(usuarios[i].id)===String(updatedUser.id)){
+                usuarios[i] = updatedUser;
+                found = true; break;
+              }
+            }
+            if(!found) usuarios.push(updatedUser);
+            alert('Rol actualizado');
+            showUsuarioDetail(updatedUser);
+            renderUsuarios();
+            return;
+          }
+
+          // If server didn't return the updated user, fallback to update local rol field
           for(let i=0;i<usuarios.length;i++){
             if(String(usuarios[i].id)===String(u.id)){
               usuarios[i].rol = { id: selRole.id, nombre: selRole.nombre };
@@ -651,10 +722,10 @@
             }
           }
           alert('Rol actualizado');
-          // re-render detail and list
           showUsuarioDetail(usuarios.find(x=>String(x.id)===String(u.id)) || u);
           renderUsuarios();
         }catch(e){ console.error(e); alert('Error de red al cambiar rol'); }
+        finally{ saveBtn.disabled = false; saveBtn.textContent = prevText; }
       });
 
       row.appendChild(roleSel); row.appendChild(saveBtn);

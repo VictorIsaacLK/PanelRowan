@@ -94,7 +94,7 @@
         <div id="regMessage" style="margin-top:12px;font-size:14px"></div>
       </form>
 
-      <p class="register">¿Ya tienes cuenta? <a href="./index.html">Inicia Sesión</a></p>
+      <p class="register">¿Ya tienes cuenta? <a href="/assets/login.html">Inicia Sesión</a></p>
 
       <footer class="footer-brand">
         <span class="rowan">ROWAN</span>
@@ -177,8 +177,8 @@
         showMsg('Enviando registro...', true);
         const res = await postJson('/usuarios-captcha', { ...payload, recaptchaToken });
         showMsg('Registro exitoso. Puedes iniciar sesión.', true);
-        // Opcional: redirigir al login
-        setTimeout(()=>{ window.location.href = './index.html'; }, 1200);
+        // Opcional: redirigir al login (usar la versión estática en /assets)
+        setTimeout(()=>{ window.location.href = '/assets/login.html'; }, 1200);
       }catch(err){
         console.error(err);
         if(err && err.status === 400 && err.body){

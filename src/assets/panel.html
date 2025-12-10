@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#e51e2a">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#e51e2a;--dark:#0f172a;--muted:#6b7280;--bg:#f7f8fb;--card:#fff}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto;color:var(--dark);background:var(--bg)}
+    header{background:var(--red);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px}
+    header .header-logout{width:40px;height:40px;border-radius:10px;background:#fff;color:var(--red);border:0;display:grid;place-items:center;cursor:pointer;font-weight:700}
+    header .back{font-weight:700}
+    header h1{margin:0;font-size:18px;flex:1;text-align:center}
+    .container{max-width:1100px;margin:18px auto;padding:12px}
+    .toolbar{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+    .search{flex:1;display:flex;align-items:center;gap:8px}
+    .input{padding:10px 12px;border-radius:10px;border:2px solid #e6e6e6;background:#fff;width:100%;}
+    .select, .date{padding:10px;border-radius:10px;border:2px solid #e6e6e6;background:#fff}
+    .btn{background:var(--red);color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer}
+
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:900px){.grid{grid-template-columns:1fr 360px}}
+
+    /* tickets list */
+    .list{display:flex;flex-direction:column;gap:12px}
+    .card{background:var(--card);border-radius:12px;padding:12px;border:3px solid rgba(229,30,42,.12);position:relative}
+    .card .meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .card .meta .id{font-weight:700}
+    .tag{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:700}
+    .tag.pendiente{background:#ffd6d8;color:var(--red)}
+    .tag.revision{background:#fff3bf;color:#d97706}
+    .tag.finalizado{background:#d1fae5;color:#16a34a}
+    .card p{margin:6px 0;color:#111827}
+
+    .card .actions{display:flex;gap:8px;align-items:center;margin-top:8px}
+    .icon-btn{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:10px;background:#fff;border:1px solid rgba(0,0,0,.06);cursor:pointer}
+    .icon-pdf{color:#b91c1c}
+    .icon-img{color:#b45309}
+    .icon-edit{color:#f59e0b}
+    .icon-delete{color:#ef4444}
+
+    /* details pane */
+    .pane{background:var(--card);border-radius:12px;padding:12px;border:3px solid rgba(229,30,42,.08)}
+    .pane h2{margin:0 0 8px;font-size:16px}
+    .form-row{display:flex;gap:8px;align-items:center;margin:8px 0}
+    .select-sm{padding:8px;border-radius:8px;border:1px solid #e6e6e6}
+
+    footer.pwa-actions{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:4px solid rgba(229,30,42,.12);display:flex;justify-content:center;padding:8px}
+    .fab{width:56px;height:56px;border-radius:999px;background:var(--red);display:grid;place-items:center;color:#fff;font-size:28px;border:6px solid #fff;box-shadow:0 6px 18px rgba(0,0,0,.12)}
+
+    .empty{padding:20px;text-align:center;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <header>
+    <button id="logoutBtn" class="header-logout" title="Cerrar sesión">⎋</button>
+    <div class="back">⬅</div>
+    <h1>SEDE — Panel Administrador</h1>
+    <div style="width:24px"></div>
+  </header>
+
+  <main class="container">
+    <section class="toolbar">
+      <div class="search">
+        <input id="q" class="input" placeholder="Buscar por ID, descripción, usuario..." />
+        <button class="btn" id="searchBtn">Buscar</button>
+      </div>
+      <select id="filterSistema" class="select">
+        <option value="">Todos los sistemas</option>
+      </select>
+      <select id="filterEdificio" class="select" style="margin-left:8px">
+        <option value="">Todos los edificios</option>
+      </select>
+      <div style="display:flex;gap:8px;align-items:center;margin-left:8px">
+        <button class="btn" id="exportJsonBtn">Exportar todo (JSON)</button>
+        <button class="btn" id="exportTicketsCsvBtn" style="background:#0f172a">Exportar tickets (CSV)</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="from" type="date" class="date" />
+        <input id="to" type="date" class="date" />
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="list" id="ticketsList">
+        <!-- Tickets render here -->
+      </section>
+
+      <aside class="pane" id="detailPane">
+        <h2>Detalles del ticket</h2>
+        <div id="detailContent" style="min-height:180px">
+          <p class="empty">Selecciona un ticket para ver detalles.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="pwa-actions">
+    <button class="fab" id="newTicket">+</button>
+  </footer>
+
+  <script>
+    // --- Config
+    const API_BASE = window.API_BASE_URL || 'http://localhost:3000' || 'https://victorobproyecto.site/api';
+
+    // --- Helpers
+    function el(tag, attrs={}, children=[]){
+      const e = document.createElement(tag);
+      Object.entries(attrs).forEach(([k,v])=>{
+        if(k==='class') e.className = v; else if(k==='html') e.innerHTML=v; else e.setAttribute(k,v);
+      });
+      (Array.isArray(children)?children:[children]).flat().forEach(c=>{ if(typeof c==='string') e.appendChild(document.createTextNode(c)); else if(c) e.appendChild(c); });
+      return e;
+    }
+
+    // --- State
+    let tiposSistema = [];
+    let tickets = [];
+    let usuarios = [];
+    let roles = [];
+    let edificios = [];
+    let asignaciones = [];
+    let evidencias = [];
+    let historial = [];
+    let notificaciones = [];
+
+    // --- Fetch initial data (with fallback sample for demo)
+    async function init(){
+      try{
+        // fetch tipos_sistema
+        const resS = await fetch(API_BASE + '/tipos-sistema');
+        if(resS.ok) tiposSistema = await resS.json();
+      }catch(e){ console.warn('No se pudo obtener tipos_sistema, usando demo.'); tiposSistema = [{id:1,nombre:'FAS (Alarma de Incendio)'},{id:2,nombre:'Sistema de Accesos'}]; }
+
+      const sel = document.getElementById('filterSistema');
+      tiposSistema.forEach(t=> sel.appendChild(el('option',{value:t.id}, t.nombre)));
+
+      // Fetch additional resources used in the panel so we can export them
+      try{ const r = await fetch(API_BASE + '/usuarios'); if(r.ok) usuarios = await r.json(); }catch(e){ console.warn('Usuarios no disponibles'); }
+      try{ const r = await fetch(API_BASE + '/roles'); if(r.ok) roles = await r.json(); }catch(e){ console.warn('Roles no disponibles'); }
+      try{ const r = await fetch(API_BASE + '/edificios'); if(r.ok) edificios = await r.json(); }catch(e){ console.warn('Edificios no disponibles'); }
+      // populate edificios select
+      try{
+        const selEd = document.getElementById('filterEdificio');
+        if(edificios && Array.isArray(edificios)){
+          edificios.forEach(e=> selEd.appendChild(el('option',{value:e.id}, e.nombre)));
+        }
+      }catch(e){/* ignore */}
+      try{ const r = await fetch(API_BASE + '/asignaciones-tickets'); if(r.ok) asignaciones = await r.json(); }catch(e){ console.warn('Asignaciones no disponibles'); }
+      try{ const r = await fetch(API_BASE + '/evidencias'); if(r.ok) evidencias = await r.json(); }catch(e){ console.warn('Evidencias no disponibles'); }
+      try{ const r = await fetch(API_BASE + '/historial-status'); if(r.ok) historial = await r.json(); }catch(e){ console.warn('Historial no disponible'); }
+      try{ const r = await fetch(API_BASE + '/notificaciones'); if(r.ok) notificaciones = await r.json(); }catch(e){ console.warn('Notificaciones no disponibles'); }
+
+      await loadTickets();
+    }
+
+    async function loadTickets(){
+      const q = document.getElementById('q').value;
+      const sistema = document.getElementById('filterSistema').value;
+      const from = document.getElementById('from').value;
+      const to = document.getElementById('to').value;
+      try{
+        const edificioId = document.getElementById('filterEdificio').value;
+        if (edificioId) {
+          // If an edificio is selected, use the por-edificio endpoint (returns ticket objects)
+          const res = await fetch(API_BASE + '/tickets/por-edificio/' + encodeURIComponent(edificioId));
+          if(res.ok){
+            let data = await res.json();
+            // data is an array of ticket objects; apply client-side sistema filter if present
+            if(sistema){ data = data.filter(tt => (tt.tipoSistema?.id || tt.tipo_sistema?.id || (tt.tipoSistema || tt.tipo_sistema)) == Number(sistema)); }
+            tickets = data;
+            renderList(); return;
+          }
+        } else {
+          // The API exposes all tickets via /asignaciones-tickets (each item has .ticket)
+          const params = new URLSearchParams({q, sistema, from, to});
+          const url = API_BASE + '/asignaciones-tickets' + (params.toString() ? ('?' + params.toString()) : '');
+          const res = await fetch(url);
+          if(res.ok){
+            let data = await res.json();
+            // normalize: many endpoints return { id, ticket: { ... } }
+            if(Array.isArray(data) && data.length>0 && data[0].ticket){
+              data = data.map(a => {
+                const t = a.ticket;
+                if(a.empleado) t.usuarioAsignado = a.empleado;
+                return t;
+              });
+            }
+            // apply sistema filter client-side: ticket.tipoSistema.id or ticket.tipo_sistema.id
+            if(sistema){ data = data.filter(tt => (tt.tipoSistema?.id || tt.tipo_sistema?.id) == Number(sistema)); }
+            tickets = data;
+            renderList(); return;
+          }
+        }
+      }catch(e){ console.warn('No se pudo cargar tickets, usando demo', e); }
+
+
+      renderList();
+    }
+
+    function renderList(){
+      const list = document.getElementById('ticketsList'); list.innerHTML='';
+      if(tickets.length===0){ list.appendChild(el('div',{class:'empty'},'No hay tickets')); return; }
+      tickets.forEach(t=>{
+        const card = el('article',{class:'card'});
+        // Support both flat and nested ticket shapes
+        const codigo = t.codigo_ticket || t.codigoTicket || '';
+        const tipo = (t.tipo_sistema && t.tipo_sistema.nombre) || (t.tipoSistema && t.tipoSistema.nombre) || (t.tipo_sistema || t.tipoSistema) || '';
+        const fecha = t.fecha_creacion || t.fechaCreacion || (t.fecha && t.fecha) || '';
+        const meta = el('div',{class:'meta'}, [ el('div',{class:'id'}, `${codigo} — ${tipo}`), el('div',{}, fecha) ]);
+        card.appendChild(meta);
+        card.appendChild(el('p',{}, [ el('strong',{}, 'Descripción: '), ' ' + (t.descripcion || '') ]));
+        // usuarioAsignado / usuario_asignado / asignado
+        const asignado = t.usuarioAsignado?.nombre ? (t.usuarioAsignado.nombre + ' ' + (t.usuarioAsignado.apellidos||'')) : (t.asignado || t.usuario_asignado || 'NA');
+        card.appendChild(el('p',{}, [ el('strong',{}, 'Asignado a: '), asignado || 'NA' ]));
+
+        const statusVal = t.status || t.estado || 'pendiente';
+        const statusTag = el('span',{class:'tag ' + statusVal}, statusVal.charAt(0).toUpperCase() + statusVal.slice(1));
+        card.appendChild(statusTag);
+
+        const actions = el('div',{class:'actions'});
+        const imgBtn = el('button',{class:'icon-btn',title:'Ver evidencia/imagen'}, '🖼');
+        imgBtn.addEventListener('click',()=> openEvidence(t.id));
+        const pdfBtn = el('button',{class:'icon-btn',title:'Ver PDF'}, '📄');
+        pdfBtn.addEventListener('click',()=> openPDF(t.id));
+        const editBtn = el('button',{class:'icon-btn',title:'Cambiar status'}, '✏️');
+        editBtn.addEventListener('click',()=> openChangeStatus(t));
+        const delBtn = el('button',{class:'icon-btn',title:'Eliminar'}, '✖');
+        delBtn.addEventListener('click',()=> deleteTicket(t.id));
+
+        actions.append(imgBtn,pdfBtn,editBtn,delBtn);
+        card.appendChild(actions);
+
+        card.addEventListener('click',(ev)=>{ if(ev.target.closest('.icon-btn')) return; showDetail(t); });
+
+        list.appendChild(card);
+      });
+    }
+
+    // --- Export helpers
+    function download(filename, content, mime='application/json'){
+      const blob = new Blob([content], { type: mime + ';charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=> URL.revokeObjectURL(url), 5000);
+    }
+
+    function toCSV(arr){
+      if(!Array.isArray(arr) || arr.length===0) return '';
+      const keys = Array.from(arr.reduce((s,row)=>{ Object.keys(row).forEach(k=>s.add(k)); return s; }, new Set()));
+      const lines = [keys.join(',')];
+      for(const row of arr){
+        const vals = keys.map(k=>{
+          const v = row[k] === undefined || row[k] === null ? '' : String(row[k]);
+          // escape quotes
+          if(v.indexOf(',')!==-1 || v.indexOf('"')!==-1 || v.indexOf('\n')!==-1) return '"' + v.replace(/"/g,'""') + '"';
+          return v;
+        });
+        lines.push(vals.join(','));
+      }
+      return lines.join('\n');
+    }
+
+    function exportAllAsJson(){
+      const payload = { tiposSistema, tickets, usuarios, roles, edificios, asignaciones, evidencias, historial, notificaciones };
+      download('export-all-' + new Date().toISOString().replace(/[:.]/g,'-') + '.json', JSON.stringify(payload, null, 2), 'application/json');
+    }
+
+    function exportTicketsCsv(){
+      const csv = toCSV(tickets);
+      if(!csv){ alert('No hay tickets para exportar'); return; }
+      download('tickets-' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.csv', csv, 'text/csv');
+    }
+
+    function showDetail(t){
+      const pane = document.getElementById('detailContent'); pane.innerHTML='';
+      pane.appendChild(el('p',{}, [ el('strong',{}, 'ID: '), t.codigo_ticket || '' ]));
+      const tipoDetalle = (t.tipo_sistema && t.tipo_sistema.nombre) || (t.tipoSistema && t.tipoSistema.nombre) || (t.tipo_sistema || t.tipoSistema) || '';
+      pane.appendChild(el('p',{}, [ el('strong',{}, 'Sistema: '), tipoDetalle ]));
+      pane.appendChild(el('p',{}, [ el('strong',{}, 'Fecha: '), t.fecha_creacion || t.fechaCreacion || '' ]));
+      pane.appendChild(el('p',{}, [ el('strong',{}, 'Descripción:') ]));
+      pane.appendChild(el('p',{}, t.descripcion || ''));
+      const asignadoDetalle = t.usuarioAsignado?.nombre ? (t.usuarioAsignado.nombre + ' ' + (t.usuarioAsignado.apellidos||'')) : (t.asignado || t.usuario_asignado || 'NA');
+      pane.appendChild(el('p',{}, [ el('strong',{}, 'Asignado a: '), asignadoDetalle ]));
+
+      const form = el('div',{}, []);
+      const sel = el('select',{class:'select-sm',id:'statusSelect'});
+      ['pendiente','revision','finalizado'].forEach(s=> sel.appendChild(el('option',{value:s}, s)));
+      sel.value = t.status;
+      const btn = el('button',{class:'btn',style:'margin-left:8px'}, 'Guardar status');
+      btn.addEventListener('click',()=> changeStatus(t.id, sel.value));
+
+      const assignRow = el('div',{class:'form-row'});
+      // create a select populated with usuarios so the user can pick an empleado
+      const assignSelect = el('select',{class:'select-sm',id:'assignTo'});
+      assignSelect.appendChild(el('option',{value:''}, 'Seleccionar empleado'));
+      if(Array.isArray(usuarios)){
+        usuarios.forEach(u=>{
+          const label = (u.nombre || '') + (u.apellidos ? (' ' + u.apellidos) : '') + (u.rol && u.rol.nombre ? (' — ' + u.rol.nombre) : '');
+          const opt = el('option',{value: u.id}, label);
+          assignSelect.appendChild(opt);
+        });
+      }
+      const assignBtn = el('button',{class:'btn',style:'background:#10b981'}, 'Asignar');
+      assignBtn.addEventListener('click',()=> assignTicket(t.id, document.getElementById('assignTo').value));
+
+      form.appendChild(el('div',{class:'form-row'}, [sel, btn]));
+      form.appendChild(assignRow);
+      form.appendChild(assignSelect); form.appendChild(assignBtn);
+      pane.appendChild(form);
+    }
+
+    function openEvidence(ticketId){ alert('Abrir modal de evidencia para ticket ' + ticketId + ' (usar cámara en PWA móvil)'); }
+    function openPDF(ticketId){ alert('Descargar/Ver PDF del ticket ' + ticketId); }
+
+    async function openChangeStatus(t){
+      showDetail(t);
+    }
+
+    async function changeStatus(ticketId,newStatus){
+      try{
+        // find current ticket to get previous status
+        const ticket = (tickets || []).find(t => String(t.id) === String(ticketId));
+        const prevStatus = ticket?.status || ticket?.estado || '';
+
+        // 1) Update ticket via PUT /tickets/:id (tickets controller expects full update payload)
+        const updateRes = await fetch(API_BASE + '/tickets/' + ticketId,{
+          method:'PUT',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ status: newStatus })
+        });
+
+        if(!updateRes.ok){ alert('Error actualizando status en el ticket'); return; }
+
+        // 2) Create historial record via POST /historial-status
+        // Try to get usuario_id from localStorage token or a global var
+        let usuarioId = null;
+        try{
+          const userRaw = localStorage.getItem('user');
+          if(userRaw){ const u = JSON.parse(userRaw); usuarioId = u.id || u.usuario_id || u.usuario?.id; }
+          if(!usuarioId){
+            const token = localStorage.getItem('token') || localStorage.getItem('jwt');
+            if(token){
+              const parts = token.split('.');
+              if(parts.length>=2){
+                try{
+                  const payloadStr = parts[1].replace(/-/g,'+').replace(/_/g,'/');
+                  const decoded = atob(payloadStr);
+                  const payload = JSON.parse(decoded);
+                  usuarioId = payload.id || payload.userId || payload.sub || null;
+                }catch(e){ /* ignore parse errors */ }
+              }
+            }
+          }
+        }catch(e){ /* ignore */ }
+
+        try{
+          await fetch(API_BASE + '/historial-status',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ ticket_id: ticketId, usuario_id: usuarioId, from: prevStatus, to: newStatus, timestamp: new Date().toISOString() })
+          });
+        }catch(e){ console.warn('No se pudo crear historial', e); }
+
+        // update local state and refresh list
+        if(ticket){ ticket.status = newStatus; }
+        renderList();
+        const pane = document.getElementById('detailContent'); if(pane) pane.appendChild(el('p',{}, 'Status actualizado correctamente'));
+      }catch(e){ console.error(e); alert('Error cambiando status'); }
+    }
+
+    async function assignTicket(ticketId, empleadoId){
+      if(!empleadoId){ alert('Selecciona un empleado'); return; }
+      try{
+        // Prefer a specific endpoint if available
+        const res = await fetch(API_BASE + '/asignaciones-tickets',{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ ticket_id: ticketId, empleado_id: empleadoId })
+        });
+        if(!res.ok){
+          // fallback: update ticket directly
+          const res2 = await fetch(API_BASE + '/tickets/' + ticketId,{
+            method:'PUT', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ asignado: empleadoId })
+          });
+          if(!res2.ok) throw new Error('Error asignando ticket');
+        }
+        // update local copy
+        const t = tickets.find(x=>String(x.id)===String(ticketId)); if(t) t.usuarioAsignado = usuarios.find(u=>String(u.id)===String(empleadoId)) || null;
+        renderList();
+        alert('Ticket asignado');
+      }catch(e){ console.error(e); alert('Error asignando ticket'); }
+    }
+
+    async function deleteTicket(ticketId){
+      if(!confirm('¿Eliminar ticket #' + ticketId + ' ?')) return;
+      try{
+        const res = await fetch(API_BASE + '/tickets/' + ticketId, { method: 'DELETE' });
+        if(!res.ok){ alert('Error eliminando ticket'); return; }
+        tickets = (tickets || []).filter(t=> String(t.id)!==String(ticketId));
+        renderList();
+        const pane = document.getElementById('detailContent'); if(pane) pane.innerHTML = '<p class="empty">Selecciona un ticket para ver detalles.</p>';
+      }catch(e){ console.error(e); alert('Error eliminando ticket'); }
+    }
+
+    // --- UI bindings
+    document.getElementById('logoutBtn')?.addEventListener('click', ()=>{ localStorage.removeItem('jwt'); localStorage.removeItem('token'); location.href = '/assets/login.html'; });
+    document.getElementById('searchBtn')?.addEventListener('click', ()=> loadTickets());
+    document.getElementById('exportJsonBtn')?.addEventListener('click', ()=> exportAllAsJson());
+    document.getElementById('exportTicketsCsvBtn')?.addEventListener('click', ()=> exportTicketsCsv());
+    document.getElementById('filterSistema')?.addEventListener('change', ()=> loadTickets());
+    document.getElementById('filterEdificio')?.addEventListener('change', ()=> loadTickets());
+    document.getElementById('newTicket')?.addEventListener('click', ()=> { alert('Crear nuevo ticket (no implementado en demo)'); });
+
+    // init on load
+    window.addEventListener('load', ()=>{ init().catch(e=>console.error(e)); });
+  </script>
+ </body>
+ </html>

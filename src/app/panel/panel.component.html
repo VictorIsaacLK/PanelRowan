@@ -1,0 +1,46 @@
+<header>
+  <button id="logoutBtn" class="header-logout" title="Cerrar sesión">⎋</button>
+  <div class="back">⬅</div>
+  <h1>SEDE — Panel Administrador</h1>
+  <div style="width:24px"></div>
+</header>
+
+<main class="container">
+  <section class="toolbar">
+    <div class="search">
+      <input id="q" class="input" placeholder="Buscar por ID, descripción, usuario..." />
+      <button class="btn" id="searchBtn">Buscar</button>
+    </div>
+    <select id="filterSistema" class="select">
+      <option value="">Todos los sistemas</option>
+    </select>
+    <select id="filterEdificio" class="select" style="margin-left:8px">
+      <option value="">Todos los edificios</option>
+    </select>
+    <div style="display:flex;gap:8px;align-items:center;margin-left:8px">
+      <button class="btn" id="exportJsonBtn">Exportar todo (JSON)</button>
+      <button class="btn" id="exportTicketsCsvBtn" style="background:#0f172a">Exportar tickets (CSV)</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="from" type="date" class="date" />
+      <input id="to" type="date" class="date" />
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="list" id="ticketsList">
+      <!-- Tickets render here -->
+    </section>
+
+    <aside class="pane" id="detailPane">
+      <h2>Detalles del ticket</h2>
+      <div id="detailContent" style="min-height:180px">
+        <p class="empty">Selecciona un ticket para ver detalles.</p>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer class="pwa-actions">
+  <button class="fab" id="newTicket">+</button>
+</footer>

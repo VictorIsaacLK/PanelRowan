@@ -17,7 +17,7 @@ export class LoginComponent implements OnInit {
     if (token) {
       // si ya hay token, redirigir al panel
       this.showMessage('Restaurando sesión...');
-      window.location.href = './panel.html';
+      window.location.href = '/assets/panel.html';
     }
   }
 
@@ -63,7 +63,7 @@ export class LoginComponent implements OnInit {
         if(!token){ this.showMessage('Respuesta inválida del servidor: no se obtuvo token.'); console.error('verify response', verifyBody); return; }
         localStorage.setItem('jwt', token);
         this.showMessage('Login exitoso. Redirigiendo...');
-        location.href = './panel.html';
+        location.href = '/assets/panel.html';
       } else if(method === 'totp'){
         this.showMessage('Generando QR efímero...');
         try{
@@ -76,8 +76,8 @@ export class LoginComponent implements OnInit {
           const tokenStr = typeof jwt === 'string' ? jwt : (jwt.access_token || jwt.token || jwt.accessToken || jwt.data?.access_token);
           if(!tokenStr){ this.showMessage('No se obtuvo token del servidor.'); console.error('verify response', verifyBody); return; }
           localStorage.setItem('jwt', tokenStr);
-          this.showMessage('Login exitoso con Authenticator. Redirigiendo...');
-          location.href = './panel.html';
+            this.showMessage('Login exitoso con Authenticator. Redirigiendo...');
+            location.href = '/assets/panel.html';
         }catch(err: any){ console.error(err); const e = err as any; if(e && e.body && e.body.message) this.showMessage('Error: '+e.body.message); else this.showMessage('Error verificando TOTP'); }
       } else {
         this.showMessage('Verificación cancelada');

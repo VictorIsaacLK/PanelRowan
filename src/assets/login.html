@@ -251,7 +251,7 @@
           localStorage.setItem('jwt', token);
           showMessage('Login exitoso. Redirigiendo...');
           // Redirigir al panel después del login
-          location.href = './panel.html';
+          location.href = '/assets/panel.html';
         } else if (method === 'totp') {
           // Pedimos al backend un QR efímero usando userId (endpoint anon)
           showMessage('Generando QR efímero...');
@@ -269,7 +269,7 @@
             localStorage.setItem('jwt', tokenStr);
             showMessage('Login exitoso con Authenticator. Redirigiendo...');
             // Redirigir al panel después del login TOTP
-            location.href = './panel.html';
+            location.href = '/assets/panel.html';
           }catch(err){ console.error(err); if(err && err.body && err.body.message) showMessage('Error: '+err.body.message); else showMessage('Error verificando TOTP'); }
         } else {
           showMessage('Verificación cancelada');
@@ -407,7 +407,7 @@
     // Si ya hay token, redirigir al panel
     if(localStorage.getItem('jwt')){
       showMessage('Restaurando sesión...');
-      location.href = './panel.html';
+      location.href = '/assets/panel.html';
     }
   </script>
 </body>

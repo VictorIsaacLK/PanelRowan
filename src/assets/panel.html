@@ -47,7 +47,7 @@
     .select-sm{padding:8px;border-radius:8px;border:1px solid #e6e6e6}
 
     footer.pwa-actions{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:4px solid rgba(229,30,42,.12);display:flex;justify-content:center;padding:8px}
-    .fab{width:56px;height:56px;border-radius:999px;background:var(--red);display:grid;place-items:center;color:#fff;font-size:28px;border:6px solid #fff;box-shadow:0 6px 18px rgba(0,0,0,.12)}
+    .fab{width:56px;height:56px;border-radius:999px;background:var(--red);display:grid;place-items:center;color:#fff;font-size:28px;border:6px solid #fff;box-shadow:0 6px 18px rgba(0,0,0,.12);}
 
     .empty{padding:20px;text-align:center;color:var(--muted)}
   </style>
@@ -73,9 +73,16 @@
       <select id="filterEdificio" class="select" style="margin-left:8px">
         <option value="">Todos los edificios</option>
       </select>
+      <select id="filterRol" class="select" style="margin-left:8px;display:none">
+        <option value="">Todos los roles</option>
+      </select>
       <div style="display:flex;gap:8px;align-items:center;margin-left:8px">
-        <button class="btn" id="exportJsonBtn">Exportar todo (JSON)</button>
-        <button class="btn" id="exportTicketsCsvBtn" style="background:#0f172a">Exportar tickets (CSV)</button>
+        <select id="viewSelector" class="select">
+          <option value="tickets">Tickets</option>
+          <option value="usuarios">Empleados</option>
+        </select>
+        <!-- <button class="btn" id="exportJsonBtn">Exportar (JSON)</button> -->
+        <button class="btn" id="exportViewCsvBtn" style="background:#0f172a">Exportar (CSV)</button>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="from" type="date" class="date" />
@@ -84,14 +91,14 @@
     </section>
 
     <div class="grid">
-      <section class="list" id="ticketsList">
-        <!-- Tickets render here -->
+      <section class="list" id="itemsList">
+        <!-- List render here -->
       </section>
 
       <aside class="pane" id="detailPane">
-        <h2>Detalles del ticket</h2>
+        <h2>Detalles</h2>
         <div id="detailContent" style="min-height:180px">
-          <p class="empty">Selecciona un ticket para ver detalles.</p>
+          <p class="empty">Selecciona para ver detalles.</p>
         </div>
       </aside>
     </div>
@@ -148,6 +155,13 @@
           edificios.forEach(e=> selEd.appendChild(el('option',{value:e.id}, e.nombre)));
         }
       }catch(e){/* ignore */}
+      // populate roles select
+      try{
+        const selRol = document.getElementById('filterRol');
+        if(roles && Array.isArray(roles) && selRol){
+          roles.forEach(r=> selRol.appendChild(el('option',{value:r.id}, r.nombre)));
+        }
+      }catch(e){/* ignore */}
       try{ const r = await fetch(API_BASE + '/asignaciones-tickets'); if(r.ok) asignaciones = await r.json(); }catch(e){ console.warn('Asignaciones no disponibles'); }
       try{ const r = await fetch(API_BASE + '/evidencias'); if(r.ok) evidencias = await r.json(); }catch(e){ console.warn('Evidencias no disponibles'); }
       try{ const r = await fetch(API_BASE + '/historial-status'); if(r.ok) historial = await r.json(); }catch(e){ console.warn('Historial no disponible'); }
@@ -201,10 +215,9 @@
     }
 
     function renderList(){
-      const list = document.getElementById('ticketsList'); list.innerHTML='';
+      const list = document.getElementById('itemsList'); list.innerHTML='';
       if(tickets.length===0){ list.appendChild(el('div',{class:'empty'},'No hay tickets')); return; }
       tickets.forEach(t=>{
-        if(!t) return; // ignore null/undefined entries
         const card = el('article',{class:'card'});
         // Support both flat and nested ticket shapes
         const codigo = t.codigo_ticket || t.codigoTicket || '';
@@ -342,82 +355,355 @@
           const userRaw = localStorage.getItem('user');
           if(userRaw){ const u = JSON.parse(userRaw); usuarioId = u.id || u.usuario_id || u.usuario?.id; }
           if(!usuarioId){
-            const token = localStorage.getItem('token') || localStorage.getItem('jwt');
+            const token = localStorage.getItem('token');
             if(token){
               const parts = token.split('.');
               if(parts.length>=2){
-                try{
-                  const payloadStr = parts[1].replace(/-/g,'+').replace(/_/g,'/');
-                  const decoded = atob(payloadStr);
-                  const payload = JSON.parse(decoded);
-                  usuarioId = payload.id || payload.userId || payload.sub || null;
-                }catch(e){ /* ignore parse errors */ }
+                const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+                usuarioId = payload.sub || payload.id || payload.userId || payload.usuario?.id;
               }
             }
           }
-        }catch(e){ /* ignore */ }
+        }catch(e){ /* ignore parse errors */ }
+        if (!usuarioId) usuarioId = undefined;
 
-        try{
-          await fetch(API_BASE + '/historial-status',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({ ticket_id: ticketId, usuario_id: usuarioId, from: prevStatus, to: newStatus, timestamp: new Date().toISOString() })
-          });
-        }catch(e){ console.warn('No se pudo crear historial', e); }
+        const histBody = { ticket_id: Number(ticketId), status_anterior: prevStatus || undefined, status_nuevo: newStatus };
+        if (usuarioId !== undefined && usuarioId !== null) {
+          histBody.usuario_id = Number(usuarioId);
+        }
+        await fetch(API_BASE + '/historial-status', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(histBody) });
 
-        // update local state and refresh list
-        if(ticket){ ticket.status = newStatus; }
-        renderList();
-        const pane = document.getElementById('detailContent'); if(pane) pane.appendChild(el('p',{}, 'Status actualizado correctamente'));
-      }catch(e){ console.error(e); alert('Error cambiando status'); }
+        alert('Status actualizado');
+        await loadTickets();
+      }catch(e){ console.error(e); alert('No se pudo conectar al servidor (demo).'); }
     }
 
     async function assignTicket(ticketId, empleadoId){
       if(!empleadoId){ alert('Selecciona un empleado'); return; }
-      tickets = tickets || [];
       try{
-        // Prefer a specific endpoint if available
-        const res = await fetch(API_BASE + '/asignaciones-tickets',{
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ ticket_id: ticketId, empleado_id: empleadoId })
-        });
-        if(!res.ok){
-          // fallback: update ticket directly
-          const res2 = await fetch(API_BASE + '/tickets/' + ticketId,{
-            method:'PUT', headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({ asignado: empleadoId })
-          });
-          if(!res2.ok) throw new Error('Error asignando ticket');
+        const body = { ticket_id: Number(ticketId), empleado_id: Number(empleadoId) };
+        const res = await fetch(API_BASE + '/asignaciones-tickets/asignar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const txt = await res.text();
+        console.log('Asignar response status', res.status, 'body:', txt);
+        if(!res.ok){ console.error('Asignar error', res.status, txt); alert('Error al asignar: ' + txt); return; }
+
+        let created;
+        try{ created = JSON.parse(txt); }catch(e){ console.warn('No JSON en respuesta asignar, intentando fetch de asignaciones'); }
+
+        // If server returned the created/updated assignment object, use it to update UI
+        if(created && created.empleado){
+          // Update tickets[]: find the ticket and attach usuarioAsignado
+          for(let i=0;i<tickets.length;i++){
+            if(String(tickets[i].id) === String(ticketId)){
+              tickets[i].usuarioAsignado = created.empleado;
+              break;
+            }
+          }
+          showDetail(tickets.find(t=>String(t.id)===String(ticketId)) || { id: ticketId });
+          const sel = document.getElementById('assignTo'); if(sel) sel.value = '';
+          alert('Ticket asignado');
+          return;
         }
-        // update local copy
-        const t = (tickets || []).find(x=>x && String(x.id)===String(ticketId)); if(t) t.usuarioAsignado = usuarios.find(u=>String(u.id)===String(empleadoId)) || null;
-        renderList();
+
+        // Fallback: reload tickets and refresh detail
+        await loadTickets();
+        const updated = (tickets || []).find(t => String(t.id) === String(ticketId));
+        if(updated) showDetail(updated);
+        const sel = document.getElementById('assignTo'); if(sel) sel.value = '';
         alert('Ticket asignado');
-      }catch(e){ console.error(e); alert('Error asignando ticket'); }
+      }catch(e){ console.error(e); alert('Error de red al asignar'); }
     }
 
-    async function deleteTicket(ticketId){
-      if(!confirm('¿Eliminar ticket #' + ticketId + ' ?')) return;
+
+    async function deleteTicket(ticketId){ if(!confirm('Eliminar ticket?')) return; try{ const res = await fetch(API_BASE + '/tickets/' + ticketId,{method:'DELETE'}); if(res.ok){ alert('Eliminado'); await loadTickets(); } }catch(e){ alert('Demo: imposible eliminar'); } }
+
+    // --- Events
+    document.getElementById('searchBtn').addEventListener('click', ()=> loadView('tickets'));
+    document.getElementById('filterSistema').addEventListener('change', ()=> loadView(currentView));
+    // reload when edificio changes
+    document.getElementById('filterEdificio').addEventListener('change', ()=> loadView(currentView));
+    // reload when role changes
+    const roleFilterEl = document.getElementById('filterRol');
+    if(roleFilterEl) roleFilterEl.addEventListener('change', ()=> loadView(currentView));
+    document.getElementById('newTicket').addEventListener('click', ()=> alert('Abrir modal para crear ticket (solo demo)'));
+    /* document.getElementById('exportJsonBtn').addEventListener('click', exportCurrentAsJson); */
+    document.getElementById('exportViewCsvBtn').addEventListener('click', exportCurrentAsCsv);
+    document.getElementById('viewSelector').addEventListener('change', (e)=> loadView(e.target.value));
+
+    // Logout button: call API endpoint then clear local session
+    const logoutEl = document.getElementById('logoutBtn');
+    if (logoutEl) {
+      logoutEl.addEventListener('click', async () => {
+        const token = localStorage.getItem('token') || '';
+        const bearer = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
+        try {
+          if (token) {
+            const res = await fetch(API_BASE + '/auth-captcha/logout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': bearer },
+              body: JSON.stringify({ token: bearer }),
+            });
+            if (!res.ok) {
+              const txt = await res.text().catch(() => null);
+              alert('Error al cerrar sesión: ' + (txt || res.status));
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Logout request failed', e);
+          alert('No se pudo contactar al servidor. Sesión local cerrada.');
+        } finally {
+          // keep existing removals
+          try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch (e) { }
+          // also clear other likely session keys
+          try {
+            ['jwt','refreshToken','fcmToken','session','auth'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(_){} });
+          } catch (e) {}
+          try { sessionStorage.clear(); } catch (e) {}
+          // expire cookies
+          try {
+            document.cookie.split(';').forEach(cookie => {
+              const eqPos = cookie.indexOf('=');
+              const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+              document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+              document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            });
+          } catch (e) {}
+          // Redirect to index.html (login page)
+          window.location.href = '/index.html';
+        }
+      });
+    }
+
+    // iniciar
+    // currentView tracks what resource we're showing (tickets, usuarios, roles, etc.)
+    let currentView = 'tickets';
+
+    const viewToEndpoint = {
+      tickets: '/asignaciones-tickets',
+      usuarios: '/usuarios',
+      roles: '/roles',
+      edificios: '/edificios',
+      evidencias: '/evidencias',
+      historial: '/historial-status',
+      notificaciones: '/notificaciones',
+      asignaciones: '/asignaciones-tickets',
+    };
+
+    function updateExportButtons(){
+      const sel = document.getElementById('viewSelector'); if(sel) sel.value = currentView;
+      const csvBtn = document.getElementById('exportViewCsvBtn');
+      const jsonBtn = document.getElementById('exportJsonBtn');
+      if(csvBtn) csvBtn.textContent = `Exportar ${capitalizeView(currentView)} (CSV)`;
+      if(jsonBtn) jsonBtn.textContent = `Exportar ${capitalizeView(currentView)} (JSON)`;
+    }
+
+    // Show/hide filters depending on selected view
+    function updateFiltersForView(view){
+      const sSistema = document.getElementById('filterSistema');
+      const sEdificio = document.getElementById('filterEdificio');
+      const sRol = document.getElementById('filterRol');
+      if(view === 'tickets'){
+        if(sSistema) sSistema.style.display = '';
+        if(sEdificio) sEdificio.style.display = '';
+        if(sRol) sRol.style.display = 'none';
+      } else if(view === 'usuarios'){
+        if(sSistema) sSistema.style.display = 'none';
+        if(sEdificio) sEdificio.style.display = 'none';
+        if(sRol) sRol.style.display = '';
+      } else {
+        // hide filters for other views by default
+        if(sSistema) sSistema.style.display = 'none';
+        if(sEdificio) sEdificio.style.display = 'none';
+        if(sRol) sRol.style.display = 'none';
+      }
+    }
+
+    function capitalizeView(v){
+      if(!v) return '';
+      if(v==='usuarios') return 'Empleados';
+      if(v==='historial') return 'Historial';
+      return v.charAt(0).toUpperCase() + v.slice(1);
+    }
+
+    async function loadView(view){
+      currentView = view || currentView;
+      updateExportButtons();
+      updateFiltersForView(currentView);
       try{
-        const res = await fetch(API_BASE + '/tickets/' + ticketId, { method: 'DELETE' });
-        if(!res.ok){ alert('Error eliminando ticket'); return; }
-        tickets = (tickets || []).filter(t=> String(t.id)!==String(ticketId));
-        renderList();
-        const pane = document.getElementById('detailContent'); if(pane) pane.innerHTML = '<p class="empty">Selecciona un ticket para ver detalles.</p>';
-      }catch(e){ console.error(e); alert('Error eliminando ticket'); }
+        if(currentView === 'tickets'){
+          await loadTickets();
+          return;
+        }
+
+        const endpoint = viewToEndpoint[currentView] || ('/' + currentView);
+        const res = await fetch(API_BASE + endpoint);
+        if(!res.ok){ console.warn('Error fetching', endpoint); renderGenericList([]); return; }
+        const data = await res.json();
+
+        // Special case: /asignaciones-tickets returns objects with .ticket; normalize
+        if(Array.isArray(data) && data.length>0 && data[0].ticket){
+          const ticketsData = data.map(a=>{ const t = a.ticket; if(a.empleado) t.usuarioAsignado = a.empleado; return t; });
+          tickets = ticketsData; renderList(); return;
+        }
+
+        if(currentView === 'usuarios'){
+          usuarios = Array.isArray(data)? data : (data.rows || []);
+          renderUsuarios(); return;
+        }
+
+        // generic render for arrays of simple records
+        if(Array.isArray(data)){
+          renderGenericList(data);
+          return;
+        }
+        // fallback: show single object
+        renderGenericList([data]);
+      }catch(e){ console.error(e); renderGenericList([]); }
     }
 
-    // --- UI bindings
-    document.getElementById('logoutBtn')?.addEventListener('click', ()=>{ localStorage.removeItem('jwt'); localStorage.removeItem('token'); location.href = '/assets/login.html'; });
-    document.getElementById('searchBtn')?.addEventListener('click', ()=> loadTickets());
-    document.getElementById('exportJsonBtn')?.addEventListener('click', ()=> exportAllAsJson());
-    document.getElementById('exportTicketsCsvBtn')?.addEventListener('click', ()=> exportTicketsCsv());
-    document.getElementById('filterSistema')?.addEventListener('change', ()=> loadTickets());
-    document.getElementById('filterEdificio')?.addEventListener('change', ()=> loadTickets());
-    document.getElementById('newTicket')?.addEventListener('click', ()=> { alert('Crear nuevo ticket (no implementado en demo)'); });
+    function renderUsuarios(){
+      const list = document.getElementById('itemsList'); list.innerHTML='';
+      // Apply role filter if set
+      const roleFilter = (document.getElementById('filterRol') && document.getElementById('filterRol').value) || '';
+      let data = Array.isArray(usuarios) ? usuarios.slice() : [];
+      if(roleFilter){
+        data = data.filter(u => {
+          if(!u) return false;
+          const r = u.rol;
+          if(!r) return false;
+          if(typeof r === 'object') return String(r.id) === String(roleFilter) || String(r.nombre) === String(roleFilter);
+          return String(r) === String(roleFilter);
+        });
+      }
+      if(!Array.isArray(data) || data.length===0){ list.appendChild(el('div',{class:'empty'},'No hay empleados')); return; }
+      data.forEach(u=>{
+        const card = el('article',{class:'card'});
+        const name = (u.nombre||'') + (u.apellidos?(' '+u.apellidos):'');
+        const meta = el('div',{class:'meta'}, [ el('div',{class:'id'}, name || ('ID '+(u.id||''))), el('div',{}, u.email || (u.correo || '')) ]);
+        card.appendChild(meta);
+        card.appendChild(el('p',{}, [ el('strong',{}, 'Rol: '), (u.rol && u.rol.nombre) || u.rol || '—' ]));
+        card.appendChild(el('p',{}, [ el('strong',{}, 'Teléfono: '), u.telefono || u.telefono_movil || '—' ]));
+        // clicking a usuario shows the usuario detail pane where role can be changed
+        card.addEventListener('click', (ev)=>{ if(ev.target.closest('.icon-btn')) return; showUsuarioDetail(u); });
+        list.appendChild(card);
+      });
+    }
+
+    // Show detail pane for a usuario and allow changing role
+    function showUsuarioDetail(u){
+      const pane = document.getElementById('detailContent'); pane.innerHTML='';
+      if(!u) { pane.appendChild(el('p',{class:'empty'},'Usuario no disponible')); return; }
+      const name = (u.nombre||'') + (u.apellidos?(' '+u.apellidos):'');
+      pane.appendChild(el('p',{}, [ el('strong',{}, 'Nombre: '), name || ('ID '+(u.id||'')) ]));
+      pane.appendChild(el('p',{}, [ el('strong',{}, 'Email: '), u.email || u.correo || '—' ]));
+      pane.appendChild(el('p',{}, [ el('strong',{}, 'Teléfono: '), u.telefono || u.telefono_movil || '—' ]));
+
+      // role selector
+      const row = el('div',{class:'form-row'});
+      const roleSel = el('select',{class:'select-sm',id:'detailRoleSelect'});
+      roleSel.appendChild(el('option',{value:''}, 'Seleccionar rol'));
+      // populate roles (use existing roles array or fetch if empty)
+      const populateRoles = (rolesList)=>{
+        // clear existing
+        roleSel.innerHTML = '';
+        roleSel.appendChild(el('option',{value:''}, 'Seleccionar rol'));
+        if(Array.isArray(rolesList)){
+          rolesList.forEach(r=>{
+            const opt = el('option',{value:r.id}, r.nombre);
+            roleSel.appendChild(opt);
+          });
+        }
+        // preselect current role if present
+        try{
+          const cur = u.rol && (u.rol.id || u.rol) ? (u.rol.id || u.rol) : '';
+          if(cur) roleSel.value = String(cur);
+        }catch(e){}
+      };
+      if(Array.isArray(roles) && roles.length>0){ populateRoles(roles); }
+      else {
+        // fetch roles from server as fallback
+        (async ()=>{
+          try{ const r = await fetch(API_BASE + '/roles'); if(r.ok){ const rr = await r.json(); roles = Array.isArray(rr)? rr : (rr.rows||[]); populateRoles(roles); } }
+          catch(e){ console.warn('No se pudieron cargar roles', e); }
+        })();
+      }
+
+      const saveBtn = el('button',{class:'btn',style:'margin-left:8px'}, 'Guardar rol');
+      saveBtn.addEventListener('click', async ()=>{
+        const selVal = roleSel.value;
+        if(!selVal){ alert('Selecciona un rol'); return; }
+        // find role name from roles array
+        const selRole = (roles||[]).find(r=> String(r.id)===String(selVal)) || { id: selVal, nombre: roleSel.options[roleSel.selectedIndex]?.text || '' };
+        const body = { nombre: selRole.nombre || '' };
+        try{
+          const res = await fetch(API_BASE + '/roles/' + encodeURIComponent(u.id), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if(!res.ok){ const txt = await res.text().catch(()=>null); alert('Error al cambiar rol: ' + (txt || res.status)); return; }
+          // update local usuarios array to reflect new role
+          for(let i=0;i<usuarios.length;i++){
+            if(String(usuarios[i].id)===String(u.id)){
+              usuarios[i].rol = { id: selRole.id, nombre: selRole.nombre };
+              break;
+            }
+          }
+          alert('Rol actualizado');
+          // re-render detail and list
+          showUsuarioDetail(usuarios.find(x=>String(x.id)===String(u.id)) || u);
+          renderUsuarios();
+        }catch(e){ console.error(e); alert('Error de red al cambiar rol'); }
+      });
+
+      row.appendChild(roleSel); row.appendChild(saveBtn);
+      pane.appendChild(row);
+    }
+
+    function exportCurrentAsJson(){
+      (async ()=>{
+        try{
+          if(currentView === 'tickets'){ exportAllAsJson(); return; }
+          const endpoint = viewToEndpoint[currentView] || ('/' + currentView);
+          const res = await fetch(API_BASE + endpoint);
+          if(!res.ok){ alert('Error exportando ' + currentView); return; }
+          const data = await res.json();
+          download(currentView + '-' + new Date().toISOString().replace(/[:.]/g,'-') + '.json', JSON.stringify(data, null, 2), 'application/json');
+        }catch(e){ console.error(e); alert('Error exportando'); }
+      })();
+    }
+
+    function exportCurrentAsCsv(){
+      (async ()=>{
+        try{
+          if(currentView === 'tickets'){
+            exportTicketsCsv(); return;
+          }
+          const endpoint = viewToEndpoint[currentView] || ('/' + currentView);
+          const res = await fetch(API_BASE + endpoint);
+          if(!res.ok){ alert('Error exportando ' + currentView); return; }
+          const data = await res.json();
+          // normalize if endpoint returns wrapper
+          const arr = Array.isArray(data) ? data : (data.rows || [data]);
+          const csv = toCSV(arr);
+          if(!csv){ alert('No hay datos'); return; }
+          download(currentView + '-' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.csv', csv, 'text/csv');
+        }catch(e){ console.error(e); alert('Error exportando'); }
+      })();
+    }
+
+    // start with selected view
+    updateExportButtons();
+    init().then(()=> loadView(currentView));
+
+    // --- Service worker registration (basic)
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sw.js').then(()=>console.log('SW registrado')).catch(()=>console.warn('SW no registrado'));
+    }
 
     // init on load
     window.addEventListener('load', ()=>{ init().catch(e=>console.error(e)); });
   </script>
- </body>
- </html>
+</body>
+</html>

@@ -223,8 +223,13 @@
 
     function renderList(){
       const list = document.getElementById('itemsList'); list.innerHTML='';
-      if(tickets.length===0){ list.appendChild(el('div',{class:'empty'},'No hay tickets')); return; }
-      tickets.forEach(t=>{
+      // guard against malformed items (null/undefined) in the tickets array
+      const safeTickets = Array.isArray(tickets) ? tickets.filter(x => x && typeof x === 'object') : [];
+      if(Array.isArray(tickets) && tickets.length !== safeTickets.length){
+        console.warn('renderList: removed', tickets.length - safeTickets.length, 'invalid ticket entries');
+      }
+      if(safeTickets.length===0){ list.appendChild(el('div',{class:'empty'},'No hay tickets')); return; }
+      safeTickets.forEach(t=>{
         const card = el('article',{class:'card'});
         // Support both flat and nested ticket shapes
         const codigo = t.codigo_ticket || t.codigoTicket || '';

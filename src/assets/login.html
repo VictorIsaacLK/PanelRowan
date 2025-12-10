@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Iniciar sesión — Rowan Networks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Google reCAPTCHA v2 (checkbox) -->
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <style>
+    :root{
+      --brand-red:#e51e2a;
+      --brand-green:#29c150;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --bg:#f7f7fb;
+      --white:#fff;
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background:linear-gradient(180deg,#ffffff 0%, #f4f5f9 100%);
+    }
+    .wrap{
+      min-height:100%;
+      display:grid;
+      place-items:center;
+      padding:24px;
+    }
+    .card{
+      position:relative;
+      width:100%;
+      max-width:420px;
+      background:var(--white);
+      border:3px solid var(--brand-red);
+      border-radius:26px;
+      padding:72px 28px 90px; /* space for floating logo + footer */
+      box-shadow:0 10px 30px rgba(0,0,0,.06);
+    }
+    /* Floating logo */
+    .logo-wrap{
+      position:absolute;
+      left:50%;
+      top:-44px;
+      transform:translateX(-50%);
+      width:104px; height:104px;
+      display:grid; place-items:center;
+      background:transparent;
+    }
+    .logo{
+      width:100%; height:100%;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,.2));
+    }
+
+    h1{font-size:18px; margin:0 0 16px; font-weight:700; text-align:center}
+
+    label{display:block; font-size:14px; font-weight:600; margin:10px 6px}
+    .input{
+      width:100%;
+      border:2px solid #e5e7eb;
+      border-radius:14px;
+      padding:14px 14px;
+      font-size:16px;
+      outline:0;
+      transition:border-color .2s, box-shadow .2s;
+      background:#fafafa;
+    }
+    .input:focus{
+      border-color:var(--brand-red);
+      box-shadow:0 0 0 4px rgba(229,30,42,.12);
+      background:#fff;
+    }
+
+    .btn{
+      width:100%;
+      border:0;
+      border-radius:22px;
+      padding:14px 18px;
+      font-weight:700; font-size:16px;
+      cursor:pointer;
+      transition:transform .03s ease, filter .2s ease, box-shadow .2s ease;
+    }
+    .btn:active{ transform:translateY(1px) }
+    .btn-primary{ background:var(--brand-green); color:#fff; box-shadow:0 6px 14px rgba(41,193,80,.25)}
+    .btn-primary:hover{ filter:brightness(1.05)}
+
+    .btn-ghost{
+      width:auto;
+      display:inline-block;
+      margin:14px auto 0;
+      background:var(--brand-red);
+      color:#fff;
+      padding:12px 18px;
+      border-radius:22px;
+      box-shadow:0 6px 14px rgba(229,30,42,.22);
+    }
+
+    .actions{ margin-top:18px; display:grid; gap:14px }
+
+    .register{
+      margin-top:10px; text-align:center; font-size:15px; color:var(--muted)
+    }
+    .register a{ color:var(--brand-red); font-weight:700; text-decoration:none }
+    .register a:hover{ text-decoration:underline }
+
+    .footer-brand{
+      position:absolute; left:0; right:0; bottom:18px; text-align:center; color:#0f172a
+    }
+    .rowan{
+      letter-spacing:6px; font-weight:900; font-size:36px; display:block; line-height:1; margin-bottom:2px
+    }
+    .networks{ letter-spacing:6px; font-weight:700; font-size:13px; opacity:.9 }
+
+    form:invalid .btn-primary{ opacity:.7; pointer-events:none }
+    .hint{ font-size:12px; color:var(--muted); margin:6px 6px 0 }
+
+    /* small screens */
+    @media (max-width:420px){
+      .card{ padding:72px 18px 90px }
+      .rowan{ font-size:28px }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card" aria-labelledby="title">
+      <div class="logo-wrap" aria-hidden="true">
+        <!-- Simple placeholder globe mark to mimic the reference -->
+        <svg class="logo" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rowan logo">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ff6b6b"/>
+              <stop offset="1" stop-color="#e51e2a"/>
+            </linearGradient>
+          </defs>
+          <circle cx="60" cy="60" r="50" fill="url(#g)"/>
+          <path d="M20 55c20-12 60-12 80 0M25 75c16-9 54-9 70 0M30 35c12-8 48-8 60 0" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round" opacity=".95"/>
+        </svg>
+      </div>
+
+      <h1 id="title">Iniciar sesión</h1>
+
+      <form id="loginForm" novalidate>
+        <label for="email">E-mail</label>
+        <input class="input" id="email" name="email" type="email" placeholder="tu@correo.com" autocomplete="email" required />
+        <p class="hint" id="emailHelp">Usa el correo con el que te registraste.</p>
+
+        <label for="password">Contraseña</label>
+        <input class="input" id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" minlength="6" required />
+
+        <!-- reCAPTCHA: reemplaza YOUR_SITE_KEY por tu Site Key de Google -->
+        <div style="margin-top:12px; display:flex; justify-content:center">
+          <div class="g-recaptcha" data-sitekey="6LfFZCUsAAAAAPmgQ3N94AaQURo1amC-5g0lgZ-3"></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" type="submit">Iniciar Sesión</button>
+          <!-- <a class="btn-ghost" href="#recuperar" id="forgotBtn">¿Olvidaste tu contraseña?</a> -->
+        </div>
+      </form>
+
+      <p class="register">¿Aun no tienes cuenta? <a href="/assets/registro.html">Regístrate</a></p>
+
+      <footer class="footer-brand" aria-label="Rowan Networks">
+        <span class="rowan">ROWAN</span>
+        <span class="networks">NETWORKS</span>
+      </footer>
+    </section>
+  </main>
+
+  <script>
+    // Configura la URL base de la API (ajusta si tu servidor corre en otro puerto)
+    const API_BASE = window.API_BASE_URL || 'http://localhost:3000' || 'https://victorobproyecto.site/api';
+
+    const form = document.getElementById('loginForm');
+    const card = document.querySelector('.card');
+
+    function showMessage(text, type='info'){
+      // tipo puede usarse para estilos en el futuro
+      let el = document.getElementById('formMessage');
+      if(!el){
+        el = document.createElement('div');
+        el.id = 'formMessage';
+        el.style.marginTop = '12px';
+        el.style.fontSize = '14px';
+        card.appendChild(el);
+      }
+      el.textContent = text;
+    }
+
+    async function postJson(path, body){
+      const res = await fetch(API_BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const txt = await res.text();
+      let json;
+      try{ json = txt ? JSON.parse(txt) : {}; }catch(e){ json = { message: txt }; }
+      if(!res.ok) throw { status: res.status, body: json };
+      return json;
+    }
+
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      if(!form.checkValidity()){
+        form.reportValidity();
+        return;
+      }
+
+      const correo = document.getElementById('email').value.trim();
+      const contrasena = document.getElementById('password').value;
+
+      showMessage('Enviando credenciales...', 'info');
+
+      try{
+        // En tu DTO se espera { correo, contrasena, recaptchaToken }
+        // Obtenemos el token desde el widget reCAPTCHA (v2)
+        let recaptchaToken = '';
+        if (window.grecaptcha) {
+          try { recaptchaToken = grecaptcha.getResponse(); } catch (e) { recaptchaToken = ''; }
+        }
+        // Si no hay token, solicitamos al usuario que marque el captcha
+        if (!recaptchaToken) {
+          showMessage('Por favor, completa el reCAPTCHA antes de continuar.');
+          return;
+        }
+
+        // Use the TOTP-friendly login step that validates credentials but doesn't send email
+        const body = await postJson('/auth-captcha/login-step1-totp', { correo, contrasena, recaptchaToken });
+
+        // El backend debería devolver userId (numérico) y un mensaje
+        const userId = body.userId ?? body.id ?? body.user?.id;
+        showMessage(body.message || 'Código 2FA enviado. Revisa tu correo.');
+
+        // Mostrar opciones: usar código por correo o usar Authenticator (QR efímero)
+        const method = await choose2FAMethod();
+        if (method === 'email') {
+          const code = await askForCode();
+          if(!code) { showMessage('Verificación cancelada'); return; }
+          showMessage('Verificando código...');
+          const verifyBody = await postJson('/auth-captcha/login-verify-2fa', { userId: Number(userId), code });
+          const token = verifyBody.access_token || verifyBody.token || verifyBody.jwt || verifyBody.accessToken || verifyBody.data?.access_token;
+          if(!token){ showMessage('Respuesta inválida del servidor: no se obtuvo token.'); console.error('verify response', verifyBody); return; }
+          localStorage.setItem('jwt', token);
+          showMessage('Login exitoso. Redirigiendo...');
+          // Redirigir al panel después del login
+          location.href = './panel.html';
+        } else if (method === 'totp') {
+          // Pedimos al backend un QR efímero usando userId (endpoint anon)
+          showMessage('Generando QR efímero...');
+          try{
+            const setup = await postJson('/auth-totp/ephemeral/setup-anon', { userId: Number(userId) });
+            // Mostrar modal con QR y campo para token
+            const token = await askForTotp(setup.qr, setup.ephemeralId, Number(userId));
+            if(!token){ showMessage('Verificación cancelada'); return; }
+            showMessage('Verificando token TOTP...');
+            const verifyBody = await postJson('/auth-totp/ephemeral/verify-login', { ephemeralId: setup.ephemeralId, userId: Number(userId), token });
+            const jwt = verifyBody.access_token || verifyBody.token || verifyBody.jwt || verifyBody.accessToken || verifyBody.data?.access_token || verifyBody;
+            // verifyBody may be the JWT payload; handle common shapes
+            const tokenStr = typeof jwt === 'string' ? jwt : (jwt.access_token || jwt.token || jwt.accessToken || jwt.data?.access_token);
+            if(!tokenStr){ showMessage('No se obtuvo token del servidor.'); console.error('verify response', verifyBody); return; }
+            localStorage.setItem('jwt', tokenStr);
+            showMessage('Login exitoso con Authenticator. Redirigiendo...');
+            // Redirigir al panel después del login TOTP
+            location.href = './panel.html';
+          }catch(err){ console.error(err); if(err && err.body && err.body.message) showMessage('Error: '+err.body.message); else showMessage('Error verificando TOTP'); }
+        } else {
+          showMessage('Verificación cancelada');
+        }
+
+      }catch(err){
+        console.error(err);
+        if(err && err.body && err.body.message) showMessage('Error: ' + err.body.message);
+        else if(err && err.status) showMessage('Error HTTP: ' + err.status);
+        else showMessage('Error de conexión');
+      }
+    });
+
+    function askForCode(){
+      return new Promise((resolve)=>{
+        // Creamos un pequeño modal simple para pedir el código
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed'; modal.style.left=0; modal.style.top=0; modal.style.right=0; modal.style.bottom=0;
+        modal.style.display='grid'; modal.style.placeItems='center'; modal.style.background='rgba(0,0,0,.35)';
+
+        const box = document.createElement('div');
+        box.style.background='#fff'; box.style.padding='20px'; box.style.borderRadius='12px'; box.style.width='320px';
+        box.innerHTML = `
+          <div style="font-weight:700;margin-bottom:8px">Código 2FA</div>
+          <div style="font-size:13px;color:#616161;margin-bottom:12px">Introduce el código de 6 dígitos que te enviamos por correo.</div>
+        `;
+        const input = document.createElement('input');
+        input.type='text'; input.maxLength=6; input.placeholder='123456';
+        input.style.width='100%'; input.style.padding='10px'; input.style.fontSize='16px'; input.style.border='1px solid #e5e7eb'; input.style.borderRadius='8px';
+        box.appendChild(input);
+
+        const row = document.createElement('div'); row.style.display='flex'; row.style.gap='8px'; row.style.marginTop='12px';
+        const btnOk = document.createElement('button'); btnOk.textContent='Verificar'; btnOk.style.flex='1'; btnOk.style.padding='10px'; btnOk.style.borderRadius='8px'; btnOk.style.border='0'; btnOk.style.background='#29c150'; btnOk.style.color='#fff';
+        const btnCancel = document.createElement('button'); btnCancel.textContent='Cancelar'; btnCancel.style.flex='1'; btnCancel.style.padding='10px'; btnCancel.style.borderRadius='8px'; btnCancel.style.border='0'; btnCancel.style.background='#e2e8f0';
+        row.appendChild(btnOk); row.appendChild(btnCancel);
+        box.appendChild(row);
+
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+        input.focus();
+
+        btnOk.addEventListener('click', ()=>{
+          const v = input.value.trim();
+          document.body.removeChild(modal);
+          resolve(v || null);
+        });
+        btnCancel.addEventListener('click', ()=>{
+          document.body.removeChild(modal);
+          resolve(null);
+        });
+        input.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); btnOk.click(); } });
+      });
+    }
+
+    function choose2FAMethod(){
+      return new Promise((resolve)=>{
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed'; modal.style.left=0; modal.style.top=0; modal.style.right=0; modal.style.bottom=0;
+        modal.style.display='grid'; modal.style.placeItems='center'; modal.style.background='rgba(0,0,0,.35)';
+
+        const box = document.createElement('div');
+        box.style.background='#fff'; box.style.padding='20px'; box.style.borderRadius='12px'; box.style.width='360px';
+        box.innerHTML = `<div style="font-weight:700;margin-bottom:8px">Verificación</div><div style="font-size:13px;color:#616161;margin-bottom:12px">Elige cómo verificar tu identidad:</div>`;
+
+        const btnEmail = document.createElement('button'); btnEmail.textContent='Usar código por correo'; btnEmail.className='btn btn-primary'; btnEmail.style.marginBottom='8px';
+        const btnTotp = document.createElement('button'); btnTotp.textContent='Usar Authenticator (QR)'; btnTotp.className='btn btn-ghost'; btnTotp.style.display='block'; btnTotp.style.width='100%';
+        const row = document.createElement('div'); row.style.display='grid'; row.style.gap='8px';
+        row.appendChild(btnEmail); row.appendChild(btnTotp);
+        box.appendChild(row);
+
+        const btnCancel = document.createElement('button'); btnCancel.textContent='Cancelar'; btnCancel.style.marginTop='12px'; btnCancel.className='btn'; btnCancel.style.background='#e2e8f0';
+        box.appendChild(btnCancel);
+
+        modal.appendChild(box); document.body.appendChild(modal);
+
+        btnEmail.addEventListener('click', ()=>{ document.body.removeChild(modal); resolve('email'); });
+        btnTotp.addEventListener('click', ()=>{ document.body.removeChild(modal); resolve('totp'); });
+        btnCancel.addEventListener('click', ()=>{ document.body.removeChild(modal); resolve(null); });
+      });
+    }
+
+    function askForTotp(qrDataUrl, ephemeralId, userId){
+      return new Promise((resolve)=>{
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed'; modal.style.left=0; modal.style.top=0; modal.style.right=0; modal.style.bottom=0;
+        modal.style.display='grid'; modal.style.placeItems='center'; modal.style.background='rgba(0,0,0,.35)';
+
+        const box = document.createElement('div');
+        box.style.background='#fff'; box.style.padding='18px'; box.style.borderRadius='12px'; box.style.width='360px';
+        box.innerHTML = `<div style="font-weight:700;margin-bottom:8px">Escanea el QR</div><div style="font-size:13px;color:#616161;margin-bottom:12px">Escanea este código con tu app Authenticator y luego introduce el código de 6 dígitos.</div>`;
+
+        const img = document.createElement('img'); img.src = qrDataUrl; img.style.display='block'; img.style.margin='0 auto 12px'; img.style.maxWidth='240px'; img.style.borderRadius='8px';
+        box.appendChild(img);
+
+        const input = document.createElement('input'); input.type='text'; input.maxLength=6; input.placeholder='123456'; input.style.width='100%'; input.style.padding='10px'; input.style.fontSize='16px'; input.style.border='1px solid #e5e7eb'; input.style.borderRadius='8px';
+        box.appendChild(input);
+
+        const row = document.createElement('div'); row.style.display='flex'; row.style.gap='8px'; row.style.marginTop='12px';
+        const btnOk = document.createElement('button'); btnOk.textContent='Verificar'; btnOk.style.flex='1'; btnOk.className='btn btn-primary';
+        const btnCancel = document.createElement('button'); btnCancel.textContent='Cancelar'; btnCancel.style.flex='1'; btnCancel.className='btn'; btnCancel.style.background='#e2e8f0';
+        row.appendChild(btnOk); row.appendChild(btnCancel); box.appendChild(row);
+
+        modal.appendChild(box); document.body.appendChild(modal); input.focus();
+
+        btnOk.addEventListener('click', ()=>{ const v = input.value.trim(); document.body.removeChild(modal); resolve(v || null); });
+        btnCancel.addEventListener('click', ()=>{ document.body.removeChild(modal); resolve(null); });
+        input.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); btnOk.click(); } });
+      });
+    }
+
+    async function loadProfileAndShow(){
+      const token = localStorage.getItem('jwt');
+      if(!token) return;
+      try{
+        const res = await fetch(API_BASE + '/auth-captcha/me', { headers: { 'Authorization': 'Bearer ' + token } });
+        if(!res.ok){
+          showMessage('No autorizado.');
+          return;
+        }
+        const user = await res.json();
+        // Reemplazar el contenido del card por el perfil
+        card.innerHTML = `
+          <div style="padding:22px">
+            <h2 style="margin-top:0">Bienvenido</h2>
+            <pre style="background:#f3f4f6;padding:12px;border-radius:10px">${escapeHtml(JSON.stringify(user, null, 2))}</pre>
+            <div style="margin-top:12px"><button id="logoutBtn" class="btn btn-ghost">Cerrar sesión</button></div>
+          </div>
+        `;
+        document.getElementById('logoutBtn').addEventListener('click', ()=>{ localStorage.removeItem('jwt'); location.reload(); });
+      }catch(err){ console.error(err); showMessage('Error cargando perfil'); }
+    }
+
+    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // Si ya hay token, redirigir al panel
+    if(localStorage.getItem('jwt')){
+      showMessage('Restaurando sesión...');
+      location.href = './panel.html';
+    }
+  </script>
+</body>
+</html>

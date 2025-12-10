@@ -1,13 +1,30 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>PanelRowan</title>
-  <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-</head>
-<body>
-  <app-root></app-root>
-</body>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rowan Networks</title>
+    <base href="/">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Include site-wide scripts (e.g. reCAPTCHA) if needed by app components -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <!-- Conditionally redirect root to the static login page in assets -->
+    <script>
+      // Only redirect when the current path is the site root.
+      // This prevents redirecting when navigating to SPA routes like /registro.
+      (function(){
+        try{
+          const p = location.pathname.replace(/index.html$/, '') || '/';
+          if(p === '/' || p === '' || p === '/index.html'){
+            location.replace('/assets/login.html');
+          }
+        }catch(e){ /* ignore */ }
+      })();
+    </script>
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
 </html>
